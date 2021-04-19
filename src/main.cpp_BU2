@@ -1,0 +1,80 @@
+#include <Arduino.h>
+#include <FastLED.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
+
+#define NUM_LEDS 7
+#define DATA_PIN PB0
+#define ENABLE_LEDS_PIN PB1
+#define BRIGHTNESS 100
+
+// globals...
+CRGB leds[NUM_LEDS];
+unsigned long secondMillis = 0;
+unsigned long fadeMillis = 0;
+unsigned long onOffMillis = 0;
+unsigned long fadeInterval = 50;
+unsigned long newFlickerInterval = 1000;
+unsigned long onOffInterval = 2000;
+
+
+void setup() {
+  pinMode(ENABLE_LEDS_PIN, OUTPUT);
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+  digitalWrite(ENABLE_LEDS_PIN, LOW);
+  FastLED.setBrightness(BRIGHTNESS);
+  randomSeed(analogRead(PB3));
+}
+
+void doNewFlicker() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - secondMillis >= newFlickerInterval) {
+    digitalWrite(ENABLE_LEDS_PIN, LOW);
+    leds[random(NUM_LEDS)] =  ColorFromPalette(HeatColors_p, random(254), random(10,100));
+    FastLED.show();
+    secondMillis = currentMillis;
+    newFlickerInterval = random(200,2000);
+    if(random(3) > 2) {
+      digitalWrite(ENABLE_LEDS_PIN, HIGH);
+    }
+  }
+}
+
+void doFade() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - fadeMillis >= fadeInterval) {
+    fadeToBlackBy(leds, NUM_LEDS, 5);
+    FastLED.show();
+    fadeMillis = currentMillis;
+    fadeInterval = random(10,80);
+  }
+}
+
+void goToSleep() {
+  digitalWrite(ENABLE_LEDS_PIN, !digitalRead(ENABLE_LEDS_PIN));
+  fill_solid(leds, NUM_LEDS, CRGB(0,0,128));
+  FastLED.show();
+}
+
+void doOnOff() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - onOffMillis >= onOffInterval) {
+    goToSleep();
+    onOffMillis = currentMillis;
+    onOffInterval = random(2000, 5000);
+  }
+}
+
+
+void doIntervals() {
+  // doNewFlicker();
+  // doFade();
+  doOnOff();
+}
+
+void loop() {
+  randomSeed(analogRead(PB3));
+  doIntervals();
+}

@@ -1,0 +1,104 @@
+#include <Arduino.h>
+#include <FastLED.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
+
+#define NUM_LEDS 7
+#define DATA_PIN PB0
+#define ENABLE_LEDS_PIN PB1
+#define INTERVAL_SHORT 100
+#define INTERVAL_MED 1000
+#define INTERVAL_LONG 5000
+
+// globals...
+CRGB leds[NUM_LEDS];
+unsigned long previousShortMillis = 0;
+unsigned long previousMedMillis = 0;
+unsigned long previousLongMillis = 0;
+int currentColor = 1;
+volatile byte sleeps = 0;
+
+
+void resetWatchdog() {
+  // clear various "reset" flags
+  MCUSR = 0;     
+  // allow changes, disable reset, clear existing interrupt
+  WDTCR = bit (WDCE) | bit (WDE) | bit (WDIF);
+  // set interrupt mode and an interval (WDE must be changed from 1 to 0 here)
+  WDTCR = bit (WDIE) | bit (WDP3); // | bit (WDP1);    // set WDIE, and 1 seconds delay
+  // pat the dog
+  wdt_reset();  
+}  // end of resetWatchdog
+
+
+
+void goToSleep() {
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  power_all_disable();
+  noInterrupts();
+  resetWatchdog();
+  sleep_enable();
+  interrupts();
+  sleep_cpu(); // go to sleep...
+  sleep_disable(); // and we're back...
+  power_all_enable();
+  digitalWrite(ENABLE_LEDS_PIN, HIGH);
+}
+
+void setup() {
+  resetWatchdog();
+  pinMode(ENABLE_LEDS_PIN, OUTPUT);
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+  // goToSleep();
+  bitClear(ADCSRA,ADEN); // turn off a->d convertor for power save
+  digitalWrite(ENABLE_LEDS_PIN, LOW); // turn on the led power
+}
+
+void doShortInterval() {
+  // fadeToBlackBy( leds, NUM_LEDS, 50);
+  // FastLED.show();
+}
+
+void doMedInterval() {
+  // leds[random(NUM_LEDS)] = ColorFromPalette( HeatColors_p, random(250));
+  // FastLED.show();
+}
+
+void doLongInterval() {
+  digitalWrite(ENABLE_LEDS_PIN, HIGH);
+  goToSleep();
+}
+
+void doIntervals() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousShortMillis >= INTERVAL_SHORT) {
+    doShortInterval();
+  }
+  if (currentMillis - previousMedMillis >= INTERVAL_MED) {
+    doMedInterval();
+  }
+  if (currentMillis - previousLongMillis >= INTERVAL_LONG) {
+    doLongInterval();
+  }
+    previousShortMillis = currentMillis;
+    previousMedMillis = currentMillis;
+    previousLongMillis = currentMillis;
+}
+
+unsigned long previousMillis = 0;
+
+void loop() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= INTERVAL_LONG) {
+
+  }
+  previousMillis = currentMillis;
+  // doIntervals();
+}
+
+ISR(WDT_vect) {
+  wdt_disable();
+  sleeps ++;
+}
