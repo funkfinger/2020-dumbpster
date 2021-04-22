@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
-        "CRGB"
+        "CRGB",
+        "GIFR",
+        "GIMSK",
+        "PCIE",
+        "PCIF",
+        "PCINT",
+        "PCMSK"
     ]
 }
